@@ -1,0 +1,9 @@
+[submodule "lib/ClassyDataAnalysis"]
+	path = lib/ClassyDataAnalysis
+	url = https://github.com/limblab/ClassyDataAnalysis.git
+[submodule "lib/TrialData"]
+	path = lib/TrialData
+	url = https://github.com/limblab/TrialData.git
+[submodule "lib/KinectTracking"]
+	path = lib/KinectTracking
+	url = https://github.com/limblab/KinectTracking.git
