@@ -7,3 +7,6 @@
 [submodule "lib/KinectTracking"]
 	path = lib/KinectTracking
 	url = https://github.com/limblab/KinectTracking.git
+[submodule "lib/SpikeMerge"]
+	path = lib/SpikeMerge
+	url = https://github.com/limblab/SpikeMerge.git
