@@ -368,7 +368,7 @@ switch(meta.task)
 end
 
 %% Save TD
-save(fullfile(meta.workingfolder,'TD',[meta.monkey '_' meta.date '_' td_taskname '_TDtest.mat']),'trial_data','-v7.3')
+save(fullfile(meta.workingfolder,'TD',[meta.monkey '_' meta.date '_' td_taskname '_TD.mat']),'trial_data','-v7.3')
 copyfile(fullfile(meta.workingfolder,'TD',[meta.monkey '_' meta.date '_' td_taskname '_TD.mat']),fullfile(meta.localdatafolder,'limblab-data','data-td',meta.project))
 
 %% Copy back to server!!
