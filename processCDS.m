@@ -60,12 +60,10 @@ if cds.meta.hasAnalog
         if any(contains(header,'MotorControl'))
             signal_names = [signal_names {'motorcontrol'}];
             motorcontrol_idx = analog_idx;
-            continue
         end
         if any(contains(header,'Frame')) || any(contains(header,'Marker'))
             signal_names = [signal_names {'markers'}];
             markers_idx = analog_idx;
-            continue
         end
         if any(endsWith(header,'_ang'))
             signal_names = [signal_names {'joint_ang'}];
@@ -125,8 +123,9 @@ for signum = 1:length(signal_names)
             data_table = cds.force;
             data_cols = startsWith(data_table.Properties.VariableNames,{'fx','fy','fz','mx','my','mz'});
         case 'emg'
-            % do emg stuff
-            error('emg is not implemented')
+            % do emg stuff (mostly will be processed by special 'emg' tag in convertDataToTD
+            data_table = cds.emg;
+            data_cols = startsWith(data_table.Properties.VariableNames,'EMG');
         case 'motorcontrol'
             % do motor control stuff
             data_table = cds.analog{motorcontrol_idx};
@@ -134,18 +133,31 @@ for signum = 1:length(signal_names)
             sig_guides.motorcontrol_names = data_table.Properties.VariableNames(data_cols);
         case 'markers'
             % do marker stuff
-            marker_table = cds.analog{marker_idx};
-            marker_cols = ~strcmpi(marker_table.Properties.VariableNames,'Frame') & ~strcmpi(marker_table.Properties.VariableNames,'t');
-            marker_names = cell(1,width(marker_table(:,marker_cols)));
-            for marker_idx = 1:length(marker_cols)
-                marker_names(((marker_idx-1)*3+1):(marker_idx*3)) = strcat(marker_cols(marker_idx),{'_y','_z','_x'});
+            assert(cds.hasKinematics,'CDS has no kinematics!')
+            
+            marker_table = cds.analog{markers_idx};
+            marker_cols = marker_table.Properties.VariableNames(...
+                ~strcmpi(marker_table.Properties.VariableNames,'Frame') &...
+                ~strcmpi(marker_table.Properties.VariableNames,'t')...
+                );
+            marker_names = cell(1,length(marker_cols)*3);
+            % get actual labels (assuming that the raw marker format is still y,z,x in lab coordinates...)
+            for i = 1:length(marker_cols)
+                marker_names(((i-1)*3+1):(i*3)) = strcat(marker_cols(i),{'_y','_z','_x'});
             end
             
-            marker_data = marker_table{:,marker_cols};
+            marker_data = marker_table{:,3:end};
+            t = marker_table.t;
+            
+            % interpolate to uniform sampling rate
+            dt = (t(end)-t(1))/length(t);
+            tStart = cds.kin.t(find(t(1)<cds.kin.t,1,'first'));
+            tGrid = (tStart:dt:t(end))';
+            marker_data_interp = interp1(t,marker_data,tGrid);
             
             % set in data_table
-            data_table = table([t marker_data
-            error('markers are not yet implemented')
+            data_table = table([ty marker_data_interp],'VariableNames',[{'t'} marker_names]);
+            data_cols = 2:width(data_table);
         case 'joint_ang'
             % do opensim stuff
             data_table = cds.analog{joint_ang_idx};
@@ -214,7 +226,32 @@ for signum = 1:length(signal_names)
     if P~=1 || Q~=1
         assert(signum~=maxrate_idx,'Something went wrong with the resample code...')
         
+        % figure out where the NaNs are before resampling
+        nan_spots = isnan(cont_data_cell{signum});
+        if any(any(nan_spots))
+            nanblock_thresh = 0.3/mode(diff(timevec_cell{signum})); % tolerate nan blocks up to 0.3 seconds long
+            nan_transitions = diff([zeros(1,size(nan_spots,2));nan_spots;zeros(1,size(nan_spots,2))]);
+            inan = zeros(size(nan_spots,1)+1, size(nan_spots,2));
+            for i = 1:size(nan_spots,2)
+                nan_starts = find(nan_transitions(:,i)==1);
+                nan_stops = find(nan_transitions(:,i)==-1);
+                nanblock_lengths = nan_stops-nan_starts;
+                
+                nan_starts(nanblock_lengths<nanblock_thresh) = [];
+                nan_stops(nanblock_lengths<nanblock_thresh) = [];
+                
+                %construct logical index array
+                inan(nan_starts,i)=1;
+                inan(nan_stops,i)=-1;
+                inan(:,i) = cumsum(inan(:,i));
+            end
+            inan(end,:) = [];
+        else
+            inan = falzerosse(size(nan_spots));
+        end
+        
         % need to resample
+        % need to detrend first...
         cont_data_cell{signum} = resample(cont_data_cell{signum},P,Q);
         
         % resample time vector
@@ -222,11 +259,18 @@ for signum = 1:length(signal_names)
         timevec = downsample(upsample(timevec_cell{signum},P),Q);
         timevec_cell{signum} = interp1(find(timevec>0),timevec(timevec>0),(1:length(timevec))');
         
+        inan_resample = downsample(upsample(inan,P),Q);
+        
         % get rid of NaNs on end from upsampling
         nanners = isnan(timevec_cell{signum});
         timevec_cell{signum}(nanners) = [];
+        inan_resample(nanners,:) = [];
         cont_data_cell{signum}(nanners,:) = [];
+        
+        % set nans back
+        cont_data_cell{signum}(inan_resample>0) = NaN;
     end
+    
     % collect largest min and smallest max time for trimming
     t_start = max(t_start,timevec_cell{signum}(1));
     t_end = min(t_end,timevec_cell{signum}(end));
