@@ -16,13 +16,15 @@ else
 end
 
 [data, wf] = deal(cell(1,length(cds.units)));
+tmax = 0;
 for unit = 1:length(cds.units)
     data{unit} = cds.units(unit).spikes.ts;
     wf{unit} = cds.units(unit).spikes.wave; % waveforms aren't supported right now in convertDataToTD
+    tmax = max(tmax,cds.units(unit).spikes.ts(end)); % find max timestamp for time vector
 end
 
 % assume right now that the blackrock sampling is 30kHz
-t = (cds.meta.dataWindow(1):1/double(30000):cds.meta.dataWindow(2))';
+t = (0:1/double(30000):tmax)';
 
 labels = [vertcat(cds.units.chan) vertcat(cds.units.ID)];
 

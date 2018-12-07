@@ -19,17 +19,14 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % first the events...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if isempty(event_names)
-    % just pick out everything that has 'Time' in the name
-    event_names = cds.trials.Properties.VariableNames(endsWith(cds.trials.Properties.VariableNames,'Time'));
-end
+event_names = cds.trials.Properties.VariableNames(endsWith(cds.trials.Properties.VariableNames,'Time'));
 
 % if events are time, it expects them in cells like spiking data
 %   you can also give it already-binned events and it just passes them
 %   along
-data = cell(1,length(event_names));
+event_data = cell(1,length(event_names));
 for eventnum = 1:length(event_names)
-    data{eventnum} = cds.trials.(event_names{eventnum});
+    event_data{eventnum} = cds.trials.(event_names{eventnum});
 end
 
 % this part could be automated
@@ -60,10 +57,6 @@ if cds.meta.hasAnalog
         if any(contains(header,'MotorControl'))
             signal_names = [signal_names {'motorcontrol'}];
             motorcontrol_idx = analog_idx;
-        end
-        if any(contains(header,'Frame')) || any(contains(header,'Marker'))
-            signal_names = [signal_names {'markers'}];
-            markers_idx = analog_idx;
         end
         if any(endsWith(header,'_ang'))
             signal_names = [signal_names {'joint_ang'}];
@@ -105,13 +98,16 @@ if cds.meta.hasAnalog
             signal_names = [signal_names {'elbow_acc'}];
             elbow_acc_idx = analog_idx;
         end
+        if any(contains(header,'Frame')) || any(contains(header,'Marker'))
+            signal_names = [signal_names {'markers'}];
+            markers_idx = analog_idx;
+        end
     end
 end
 
 % extract signals
 samp_rate = zeros(1,length(signal_names));
 [timevec_cell,cont_data_cell,signal_labels] = deal(cell(1,length(signal_names)));
-sig_guides = struct();
 for signum = 1:length(signal_names)
     switch lower(signal_names{signum})
         case 'kin'
@@ -130,54 +126,22 @@ for signum = 1:length(signal_names)
             % do motor control stuff
             data_table = cds.analog{motorcontrol_idx};
             data_cols = startsWith(data_table.Properties.VariableNames,'MotorControl');
-            sig_guides.motorcontrol_names = data_table.Properties.VariableNames(data_cols);
-        case 'markers'
-            % do marker stuff
-            assert(cds.hasKinematics,'CDS has no kinematics!')
-            
-            marker_table = cds.analog{markers_idx};
-            marker_cols = marker_table.Properties.VariableNames(...
-                ~strcmpi(marker_table.Properties.VariableNames,'Frame') &...
-                ~strcmpi(marker_table.Properties.VariableNames,'t')...
-                );
-            marker_names = cell(1,length(marker_cols)*3);
-            % get actual labels (assuming that the raw marker format is still y,z,x in lab coordinates...)
-            for i = 1:length(marker_cols)
-                marker_names(((i-1)*3+1):(i*3)) = strcat(marker_cols(i),{'_y','_z','_x'});
-            end
-            
-            marker_data = marker_table{:,3:end};
-            t = marker_table.t;
-            
-            % interpolate to uniform sampling rate
-            dt = (t(end)-t(1))/length(t);
-            tStart = cds.kin.t(find(t(1)<cds.kin.t,1,'first'));
-            tGrid = (tStart:dt:t(end))';
-            marker_data_interp = interp1(t,marker_data,tGrid);
-            
-            % set in data_table
-            data_table = table([ty marker_data_interp],'VariableNames',[{'t'} marker_names]);
-            data_cols = 2:width(data_table);
         case 'joint_ang'
             % do opensim stuff
             data_table = cds.analog{joint_ang_idx};
             data_cols = endsWith(data_table.Properties.VariableNames,'_ang');
-            sig_guides.joint_names = strrep(data_table.Properties.VariableNames(data_cols),'_ang','');
         case 'joint_vel'
             % do opensim stuff
             data_table = cds.analog{joint_vel_idx};
             data_cols = endsWith(data_table.Properties.VariableNames,'_vel');
-            sig_guides.joint_names = strrep(data_table.Properties.VariableNames(data_cols),'_vel','');
         case 'muscle_len'
             % do opensim stuff
             data_table = cds.analog{muscle_len_idx};
             data_cols = endsWith(data_table.Properties.VariableNames,'_len');
-            sig_guides.muscle_names = strrep(data_table.Properties.VariableNames(data_cols),'_len','');
         case 'muscle_vel'
             % do opensim stuff
             data_table = cds.analog{muscle_vel_idx};
             data_cols = endsWith(data_table.Properties.VariableNames,'_muscVel');
-            sig_guides.muscle_names = strrep(data_table.Properties.VariableNames(data_cols),'_muscVel','');
         case 'hand_pos'
             % do opensim stuff
             data_table = cds.analog{hand_pos_idx};
@@ -208,6 +172,36 @@ for signum = 1:length(signal_names)
             data_table = cds.analog{elbow_acc_idx};
             data_cols = find(contains(data_table.Properties.VariableNames,'_elbowAcc'));
             % don't really need guide since it's X Y Z (as long as the user requests those signals by label, in order)
+        case 'markers'
+            % do marker stuff
+            assert(cds.meta.hasKinematics,'CDS has no kinematics!')
+            
+            marker_table = cds.analog{markers_idx};
+            marker_cols = marker_table.Properties.VariableNames(...
+                ~strcmpi(marker_table.Properties.VariableNames,'Frame') &...
+                ~strcmpi(marker_table.Properties.VariableNames,'t')...
+                );
+            marker_names = cell(1,length(marker_cols)*3);
+            % get actual labels (assuming that the raw marker format is still y,z,x in lab coordinates...)
+            for i = 1:length(marker_cols)
+                marker_names(((i-1)*3+1):(i*3)) = strcat(marker_cols(i),{'_y','_z','_x'});
+            end
+            
+            marker_data = marker_table{:,3:end};
+            t = marker_table.t;
+            
+            % interpolate to uniform sampling rate (treat nan as missing)
+            dt = (t(end)-t(1))/length(t);
+            tGrid = (t(1):dt:t(end))';
+            marker_data_interp = zeros(length(tGrid),size(marker_data,2));
+            for i=1:size(marker_data,2)
+                real_idx = find(~isnan(marker_data(:,i)));
+                marker_data_interp(:,i) = interp1(t(real_idx),marker_data(real_idx,i),tGrid);
+            end
+            
+            % set in data_table
+            data_table = array2table([tGrid marker_data_interp],'VariableNames',[{'t'} marker_names]);
+            data_cols = 2:width(data_table);
         otherwise
             error('No idea what this signal is (%s)',signal_names{signum})
     end
@@ -226,12 +220,12 @@ for signum = 1:length(signal_names)
     if P~=1 || Q~=1
         assert(signum~=maxrate_idx,'Something went wrong with the resample code...')
         
-        % figure out where the NaNs are before resampling
+        % figure out where the NaNs are before resampling (mostly for markers, to see where they cut out)
         nan_spots = isnan(cont_data_cell{signum});
         if any(any(nan_spots))
             nanblock_thresh = 0.3/mode(diff(timevec_cell{signum})); % tolerate nan blocks up to 0.3 seconds long
             nan_transitions = diff([zeros(1,size(nan_spots,2));nan_spots;zeros(1,size(nan_spots,2))]);
-            inan = zeros(size(nan_spots,1)+1, size(nan_spots,2));
+            nanblock_endpoints = cell(1, size(nan_spots,2));
             for i = 1:size(nan_spots,2)
                 nan_starts = find(nan_transitions(:,i)==1);
                 nan_stops = find(nan_transitions(:,i)==-1);
@@ -240,35 +234,64 @@ for signum = 1:length(signal_names)
                 nan_starts(nanblock_lengths<nanblock_thresh) = [];
                 nan_stops(nanblock_lengths<nanblock_thresh) = [];
                 
-                %construct logical index array
-                inan(nan_starts,i)=1;
-                inan(nan_stops,i)=-1;
-                inan(:,i) = cumsum(inan(:,i));
+                % save times for nanblocks
+                nanblock_endpoints{i} = [timevec_cell{signum}(nan_starts) timevec_cell{signum}(nan_stops-1)];
             end
-            inan(end,:) = [];
         else
-            inan = falzerosse(size(nan_spots));
+            nanblock_endpoints = {};
         end
         
         % need to resample
         % need to detrend first...
-        cont_data_cell{signum} = resample(cont_data_cell{signum},P,Q);
+        % detrend first because resample assumes endpoints are 0
+        a = zeros(2,size(cont_data_cell{signum},2));
+        dataDetrend = zeros(size(cont_data_cell{signum},1),size(cont_data_cell{signum},2));
+        for i = 1:size(cont_data_cell{signum},2)
+            % in case start or end are nans
+            nanners = isnan(cont_data_cell{signum}(:,i));
+            data_poly = cont_data_cell{signum}(~nanners,i);
+            
+            t_poly = timevec_cell{signum}(~nanners);
+            a(1,i) = (data_poly(end)-data_poly(1))/(t_poly(end)-t_poly(1));
+            a(2,i) = data_poly(1);
+            
+            dataDetrend(:,i) = cont_data_cell{signum}(:,i)-polyval(a(:,i),timevec_cell{signum});
+        end
+        temp=resample(dataDetrend,P,Q);
+    
+        % interpolate time vector
+        % using upsample -> downsample to save memory (it's the same thing
+        % as the reverse) but it adds extra points at the end that aren't
+        % in the resampled data
+        resamp_vec = ones(size(cont_data_cell{signum},1),1);
+        resamp_vec = upsample(downsample(resamp_vec,Q),P);
+        ty=upsample(downsample(timevec_cell{signum},Q),P);
+        ty=interp1(find(resamp_vec>0),ty(resamp_vec>0),(1:length(ty))');
         
-        % resample time vector
-        assert(~any(timevec_cell{signum}<=0),'Why are there negative times in this CDS?')
-        timevec = downsample(upsample(timevec_cell{signum},P),Q);
-        timevec_cell{signum} = interp1(find(timevec>0),timevec(timevec>0),(1:length(timevec))');
+        % get rid of extrapolated points at the end
+        extrap_idx = isnan(ty);
+        ty(extrap_idx) = [];
+        temp(extrap_idx(1:size(temp,1)),:) = [];
+
+        % retrend...
+        dataResampled = zeros(size(temp,1),size(temp,2));
+        for i=1:size(dataDetrend,2)
+            dataResampled(:,i) = temp(:,i)+polyval(a(:,i),ty(:,1));
+        end
         
-        inan_resample = downsample(upsample(inan,P),Q);
+        % set nan blocks back into resampled data...
+        if ~isempty(nanblock_endpoints)
+            for i=1:size(dataResampled,2)
+                for j=1:size(nanblock_endpoints{i},1)
+                    inan = ty>=nanblock_endpoints{i}(j,1) & ty<=nanblock_endpoints{i}(j,2);
+                    dataResampled(inan) = NaN;
+                end
+            end
+        end
         
-        % get rid of NaNs on end from upsampling
-        nanners = isnan(timevec_cell{signum});
-        timevec_cell{signum}(nanners) = [];
-        inan_resample(nanners,:) = [];
-        cont_data_cell{signum}(nanners,:) = [];
-        
-        % set nans back
-        cont_data_cell{signum}(inan_resample>0) = NaN;
+        % assign back into cell
+        cont_data_cell{signum} = dataResampled;
+        timevec_cell{signum} = ty;
     end
     
     % collect largest min and smallest max time for trimming
@@ -276,21 +299,30 @@ for signum = 1:length(signal_names)
     t_end = min(t_end,timevec_cell{signum}(end));
 end
 
-% trim time vectors to be the same length, if they're not already
+% trim time vectors to be the same length and interpolate to 
+t = timevec_cell{maxrate_idx};
+trim_pts = t<t_start | t>t_end;
+cont_data_cell{maxrate_idx} = cont_data_cell{maxrate_idx}(~trim_pts,:);
+t = t(~trim_pts);
 for signum = 1:length(signal_names)
-    trim_pts = timevec_cell{signum}<t_start | timevec_cell{signum}>t_end;
-    cont_data_cell{signum}(trim_pts,:) = [];
-    timevec_cell{signum}(trim_pts) = [];
+    if signum ~= maxrate_idx
+        % interpolate to new time vector
+        cont_data_cell{signum} = interp1(timevec_cell{signum},cont_data_cell{signum},t);
+    end
 end
 
 % try horizontally concatenating...If everything went well, things should
 % be the right length...
 cont_data = horzcat(cont_data_cell{:});
 cont_labels = horzcat(signal_labels{:});
-t = timevec_cell{maxrate_idx};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-out.meta   = sig_guides;
+% now the meta...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+meta_info = struct('monkey',cds.meta.monkey,'task',cds.meta.task,'date_time',cds.meta.dateTime);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+out.meta   = meta_info;
 out.cont_data   = cont_data;
 out.cont_labels = cont_labels;
 out.event_data   = event_data;
