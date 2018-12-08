@@ -3,14 +3,13 @@ clear meta
 meta.lab=6;
 meta.ranBy='Raeed';
 meta.monkey='Han';
-meta.date='20171116';
-meta.task={'COactpas'}; % for the loading of cds
-meta.taskAlias={'COactpas_002'}; % for the filename (cell array list for files to load and save)
-meta.td_taskname = 'COactpas'; % for saving the TD
-meta.EMGrecorded = false; % whether or not EMG was recorded
-meta.markered = false; % whether or not the colorTracking has been markered
+meta.date='20171106';
+meta.task={'TRT'}; % for the loading of cds
+meta.taskAlias={'TRTnobumps_001'}; % for the filename (cell array list for files to load and save)
+meta.td_taskname = 'TRT'; % for saving the TD
+meta.EMGrecorded = true; % whether or not EMG was recorded
+meta.markered = true; % whether or not the colorTracking has been markered
 meta.array='LeftS1Area2'; % for the loading of cds
-meta.project='MultiWorkspace'; % for the folder in data-preproc
 
 %% Set up meta fields
 meta.localdatafolder=fullfile('C:\Users\rhc307\data\'); % folder with data-td and working data folder

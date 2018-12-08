@@ -1,4 +1,5 @@
 %% Pre-processing parameters
+clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
 meta.monkey='Han';
@@ -10,7 +11,6 @@ meta.motionTracked = false; % whether or not we have motion tracking
 meta.sorted = true; % whether or not the neurons have already been sorted
 meta.markered = false; % whether or not the colorTracking has been markered
 meta.array='LeftS1Area2'; % for the loading of cds
-meta.project='MultiWorkspace'; % for the folder in data-preproc
 
 %% Set up meta fields
 meta.localdatafolder=fullfile('C:\Users\rhc307\data\'); % folder with data-td and working data folder
@@ -22,9 +22,6 @@ meta.semirawfolder=fullfile(meta.remotefolder,'semi-raw');
 meta.markersfolder=fullfile(meta.semirawfolder,'markers');
 meta.sortedfolder=fullfile(meta.semirawfolder,'sorted');
 meta.opensimsettingsfolder=fullfile(meta.remotefolder,'opensim-settings');
-% meta.hyperfolder=fullfile('Z:\limblab\User_folders\Raeed'); % folder for remote data-preproc
-% meta.superfolder=fullfile(meta.hyperfolder,'data-preproc',meta.project,meta.monkey); % folder for data dump
-% meta.folder=fullfile(meta.superfolder,meta.date); % compose subfolder and superfolder
 
 if strcmp(meta.monkey,'Chips')
     meta.rawfolder=fullfile('Z:\data\Chips_12H1\RAW');
