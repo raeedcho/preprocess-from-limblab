@@ -1,10 +1,28 @@
+%% Pre-processing parameters
+clear meta
+meta.lab=6;
+meta.ranBy='Raeed';
+meta.monkey='Han';
+meta.date='20171116';
+meta.task={'COactpas'}; % for the loading of cds
+meta.taskAlias={'COactpas_002'}; % for the filename (cell array list for files to load and save)
+meta.td_taskname = 'COactpas'; % for saving the TD
+meta.EMGrecorded = false; % whether or not EMG was recorded
+meta.markered = false; % whether or not the colorTracking has been markered
+meta.array='LeftS1Area2'; % for the loading of cds
+meta.project='MultiWorkspace'; % for the folder in data-preproc
+
+%% Set up meta fields
+meta.localdatafolder=fullfile('C:\Users\rhc307\data\'); % folder with data-td and working data folder
+meta.cdslibrary=fullfile(meta.localdatafolder,'cds-library');
+meta.tdlibrary=fullfile(meta.localdatafolder,'td-library');
+meta.remotefolder=fullfile('Z:\limblab\User_folders\Raeed');
+
 %% Make TD
 spike_routine = @processCDSspikes;
-% cont_routine = @processCDScontinuous; % this can be easily modified to be any continuous signal
-% event_routine = @processCDSevents;
 cds_routine = @processCDS;
 
-if meta.motionTracked
+if meta.markered
     cont_signal_names = {...
         'pos',...
         'vel',...
@@ -66,36 +84,50 @@ else
     emg_signal_names = {};
 end
 
-switch(meta.task)
-    case 'COactpas'
-        event_names = {...
-            'startTime',...
-            'endTime',...
-            'tgtOnTime',...
-            'goCueTime',...
-            'bumpTime',...
-            };
-    case 'TRT'
-        event_names = {...
-            'startTime',...
-            'endTime',...
-            'goCueTime',...
-            'bumpTime',...
-            'targetStartTime',...
-            'ctHoldTime',...
-            'otHoldTime',...
-            };
-    otherwise
-        error('not implemented yet')
-end
-
 % parameters...
-params.bin_size = 0.001;
+params = struct('bin_size',0.001);
 
 %% load it in
 td_cell = cell(1,length(meta.taskAlias));
 for fileIdx = 1:length(meta.taskAlias)
+    % get event names specific to task
+    switch meta.task{fileIdx}
+        case 'COactpas'
+            event_names = {...
+                'startTime',...
+                'endTime',...
+                'tgtOnTime',...
+                'goCueTime',...
+                'bumpTime',...
+                };
+            trial_meta = {...
+                'ctrHold',...
+                'tgtDir',...
+                'ctrHoldBump',...
+                'bumpDir',...
+                };
+        case 'TRT'
+            event_names = {...
+                'startTime',...
+                'endTime',...
+                'goCueTime',...
+                'bumpTime',...
+                'targetStartTime',...
+                'ctHoldTime',...
+                'otHoldTime',...
+                };
+            trial_meta = {...
+                'spaceNum',...
+                'bumpDir',...
+                };
+        otherwise
+            error('not implemented yet')
+    end
+    
+    % construct cds filename
     cds_filename = fullfile(meta.cdslibrary,sprintf('%s_%s_CDS_%s.mat',meta.monkey,meta.date,meta.taskAlias{fileIdx}));
+    
+    % get signal info
     signal_info = { ...
         initSignalStruct( ...
             'filename',cds_filename, ...
@@ -107,7 +139,7 @@ for fileIdx = 1:length(meta.taskAlias)
         initSignalStruct( ... % continuous data
             'filename',cds_filename, ...
             'routine',cds_routine, ...
-            'params',struct(), ...
+            'params',struct('trial_meta',{trial_meta}), ...
             'name',[...
                 cont_signal_names,...
                 emg_signal_names,...
@@ -125,12 +157,13 @@ for fileIdx = 1:length(meta.taskAlias)
                 ], ... % can also pass [1 2],[3 4] etc if you know the arrangment of the signals in the data struct
             'operation',[]), ...
         };
-    td_cell{fileIdx} = convertDataToTD(signal_info,params);
-    % add trial meta information separately
-    td_cell{fileIdx}.trialID = cds_cell{fileIdx}.trials.number';
-    td_cell{fileIdx}.result = cds_cell{fileIdx}.trials.result';
     
-    if meta.motionTracked
+    % load trial_data (will result in warning for no meta info, but we're
+    % taking meta info from the CDS anyway)
+    td_cell{fileIdx} = convertDataToTD(signal_info,params);
+    
+    % add some meta information
+    if meta.markered
         % add label names
         td_cell{fileIdx}.marker_names = sort(getMarkerNames());
         td_cell{fileIdx}.joint_names = getJointNames();
@@ -138,31 +171,23 @@ for fileIdx = 1:length(meta.taskAlias)
     end
     td_cell{fileIdx}.motorcontrol_names = {'MotorControlSho','MotorControlElb'};
     
-    % add meta fields
-    switch meta.task
-        case 'COactpas'
-            td_cell{fileIdx}.ctrHold = cds_cell{1}.trials.ctrHold';
-            td_cell{fileIdx}.targetDir = cds_cell{1}.trials.tgtDir';
-            td_cell{fileIdx}.ctrHoldBump = cds_cell{1}.trials.ctrHoldBump';
-            td_cell{fileIdx}.bumpDir = cds_cell{1}.trials.bumpDir';
-        case 'TRT'
-            td_cell{fileIdx}.ctrHoldBump = cds_cell{1}.trials.spaceNum';
-            td_cell{fileIdx}.bumpDir = cds_cell{1}.trials.bumpDir';
-        otherwise
-            error('not implemented yet')
-    end
-    
     % make it pretty
     td_cell{fileIdx} = reorderTDfields(td_cell{fileIdx});
 end
 
-switch(meta.task)
-    case 'COactpas'
-        trial_data = td_cell{1};
-        td_taskname = 'COactpas';
-        
-    case 'OOR'
-        trial_data = td_cell{1};
+%% save structure
+% put trial datas together
+trial_data = horzcat(td_cell{:});
+save(fullfile(meta.tdlibrary,[meta.monkey '_' meta.date '_' meta.td_taskname '_TD.mat']),'trial_data','-v7.3')
+
+% and back it up
+winopen(fullfile(meta.remotefolder,'td-library'))
+winopen(meta.tdlibrary)
+
+%% Post processing?
+% switch(meta.task)  
+%     case 'OOR'
+%         trial_data = td_cell{1};
 %         params.array_alias = {'LeftS1Area2','S1'};
 %         % params.exclude_units = [255];
 %         params.event_list = {'tgtDir','target_direction';'forceDir','force_direction';'startTargHold','startTargHoldTime';'endTargHoldTime','endTargHoldTime'};
@@ -171,8 +196,8 @@ switch(meta.task)
 %         params.meta = td_meta;
 %         
 %         trial_data = parseFileByTrial(cds_cell{1},params);
-
-    case 'CObumpcurl'
+% 
+%     case 'CObumpcurl'
 %         params.array_alias = {'LeftS1Area2','S1'};
 %         params.event_list = {'ctrHoldBump';'bumpTime';'bumpDir';'ctrHold'};
 %         td_meta = struct('task',meta.task,'epoch','BL');
@@ -185,14 +210,9 @@ switch(meta.task)
 %         trial_data_WO = parseFileByTrial(cds_cell{3},params);
 %         
 %         trial_data = cat(2,trial_data_BL,trial_data_AD,trial_data_WO);
-%         td_taskname = 'CObumpcurl';
 
-    case 'TRT'
-        trial_data = td_cell{1};
-        td_taskname = 'TRT';
-        
-    case 'RW'
-        if any(contains(meta.taskAlias,'DL'))
+%     case 'RW'
+%         if any(contains(meta.taskAlias,'DL'))
 %             fprintf('Interpreting as RWTW task')
 %             params.array_alias = {'LeftS1Area2','S1';'RightCuneate','CN'};
 %             params.trial_results = {'R','A','F','I'};
@@ -208,10 +228,9 @@ switch(meta.task)
 %                 trial_data(trial).idx_targetStartTime = trial_data(trial).idx_startTime;
 %             end
 %             trial_data = reorderTDfields(trial_data);
-            td_taskname = 'RWTW';
-        else
-            trial_data = td_cell{1};
-            fprintf('Interpreting as regular random walk')
+%         else
+%             trial_data = td_cell{1};
+%             fprintf('Interpreting as regular random walk')
 %             params.array_alias = {'LeftS1Area2','S1'};
 %             params.trial_results = {'R','A','F','I'};
 %             params.include_ts = true;
@@ -223,13 +242,9 @@ switch(meta.task)
 %                 trial_data(trial).idx_targetStartTime = trial_data(trial).idx_goCueTime(1);
 %             end
 %             trial_data = reorderTDfields(trial_data);
-            td_taskname = 'RW';
-        end
-        
-    otherwise
-        error('Unrecognized task')
-        
-end
-
-%% Save TD
-save(fullfile(meta.tdlibrary,[meta.monkey '_' meta.date '_' td_taskname '_TD.mat']),'trial_data','-v7.3')
+%         end
+%         
+%     otherwise
+%         error('Unrecognized task')
+%         
+% end

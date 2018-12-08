@@ -2,11 +2,13 @@
 meta.lab=6;
 meta.ranBy='Raeed';
 meta.monkey='Han';
-meta.date='20171106';
-meta.task='TRT'; % for the loading of cds
-meta.taskAlias={'TRTnobumps_001'}; % for the filename (cell array list for files to load and save)
-meta.EMGrecorded = true; % whether or not EMG was recorded
-meta.motionTracked = true; % whether or not we have motion tracking
+meta.date='20171116';
+meta.task={'COactpas'}; % for the loading of cds
+meta.taskAlias={'COactpas_002'}; % for the filename (cell array list for files to load and save)
+meta.EMGrecorded = false; % whether or not EMG was recorded
+meta.motionTracked = false; % whether or not we have motion tracking
+meta.sorted = true; % whether or not the neurons have already been sorted
+meta.markered = false; % whether or not the colorTracking has been markered
 meta.array='LeftS1Area2'; % for the loading of cds
 meta.project='MultiWorkspace'; % for the folder in data-preproc
 
@@ -15,7 +17,11 @@ meta.localdatafolder=fullfile('C:\Users\rhc307\data\'); % folder with data-td an
 meta.workingfolder=fullfile(meta.localdatafolder,'workspace'); % folder
 meta.cdslibrary=fullfile(meta.localdatafolder,'cds-library');
 meta.tdlibrary=fullfile(meta.localdatafolder,'td-library');
-meta.remotecdsfolder=fullfile('Z:\limblab\User_folders\Raeed\CDS'); % folder to put CDS in
+meta.remotefolder=fullfile('Z:\limblab\User_folders\Raeed');
+meta.semirawfolder=fullfile(meta.remotefolder,'semi-raw');
+meta.markersfolder=fullfile(meta.semirawfolder,'markers');
+meta.sortedfolder=fullfile(meta.semirawfolder,'sorted');
+meta.opensimsettingsfolder=fullfile(meta.remotefolder,'opensim-settings');
 % meta.hyperfolder=fullfile('Z:\limblab\User_folders\Raeed'); % folder for remote data-preproc
 % meta.superfolder=fullfile(meta.hyperfolder,'data-preproc',meta.project,meta.monkey); % folder for data dump
 % meta.folder=fullfile(meta.superfolder,meta.date); % compose subfolder and superfolder
@@ -54,8 +60,17 @@ meta.neuralPrefix = [meta.monkey '_' meta.date '_' meta.arrayAlias];
 
 %% Copy data into working directory
 if length(dir(meta.workingfolder))==2 % check if directory is empty first
-    copyfile(fullfile(meta.rawfolder,[meta.monkey '_' meta.date '*']),meta.workingfolder)
+    if ispc
+        % open windows so that we can move data around
+        winopen(meta.workingfolder)
+        winopen(meta.rawfolder)
+    else
+        fprintf('These directories are probably all wrong...')
+        %fprintf('Please navigate to %s and move data to %s',meta.rawfolder,meta.workingfolder)
+        % copyfile(fullfile(meta.rawfolder,[meta.monkey '_' meta.date '*']),meta.workingfolder)
+    end
 else
+    winopen(meta.workingfolder)
     error('The working directory is not empty!')
 end
 
@@ -67,11 +82,13 @@ if ~exist(fullfile(meta.workingfolder,'preCDS'),'dir')
         movefile(fullfile(meta.workingfolder,[altMeta.neuralPrefix '*']),fullfile(meta.workingfolder,'preCDS'))
     end
 end
-if ~exist(fullfile(meta.workingfolder,'preCDS','merging'),'dir')
-    mkdir(fullfile(meta.workingfolder,'preCDS','merging'))
-    movefile(fullfile(meta.workingfolder,'preCDS',[meta.neuralPrefix '*.nev']),fullfile(meta.workingfolder,'preCDS','merging'))
-    if exist('altMeta','var') && ~isempty(altMeta.array)
-        movefile(fullfile(meta.workingfolder,'preCDS',[altMeta.neuralPrefix '*.nev']),fullfile(meta.workingfolder,'preCDS','merging'))
+if ~meta.sorted
+    if ~exist(fullfile(meta.workingfolder,'preCDS','merging'),'dir')
+        mkdir(fullfile(meta.workingfolder,'preCDS','merging'))
+        movefile(fullfile(meta.workingfolder,'preCDS',[meta.neuralPrefix '*.nev']),fullfile(meta.workingfolder,'preCDS','merging'))
+        if exist('altMeta','var') && ~isempty(altMeta.array)
+            movefile(fullfile(meta.workingfolder,'preCDS',[altMeta.neuralPrefix '*.nev']),fullfile(meta.workingfolder,'preCDS','merging'))
+        end
     end
 end
 if ~exist(fullfile(meta.workingfolder,'preCDS','Final'),'dir')
@@ -81,59 +98,73 @@ if ~exist(fullfile(meta.workingfolder,'preCDS','Final'),'dir')
         movefile(fullfile(meta.workingfolder,'preCDS',[altMeta.neuralPrefix '*.n*']),fullfile(meta.workingfolder,'preCDS','Final'))
     end
 end
-if ~exist(fullfile(meta.workingfolder,'ColorTracking'),'dir')
-    mkdir(fullfile(meta.workingfolder,'ColorTracking'))
-    movefile(fullfile(meta.workingfolder,'*_colorTracking_*.mat'),fullfile(meta.workingfolder,'ColorTracking'))
-end
-if ~exist(fullfile(meta.workingfolder,'ColorTracking','Markers'),'dir')
-    mkdir(fullfile(meta.workingfolder,'ColorTracking','Markers'))
-end
-if ~exist(fullfile(meta.workingfolder,'OpenSim'),'dir')
-    mkdir(fullfile(meta.workingfolder,'OpenSim'))
-end
-if ~exist(fullfile(meta.workingfolder,'OpenSim','Analysis'),'dir')
-    mkdir(fullfile(meta.workingfolder,'OpenSim','Analysis'))
+if meta.motionTracked
+    if ~exist(fullfile(meta.workingfolder,'ColorTracking'),'dir')
+        mkdir(fullfile(meta.workingfolder,'ColorTracking'))
+        movefile(fullfile(meta.workingfolder,'*_colorTracking_*.mat'),fullfile(meta.workingfolder,'ColorTracking'))
+    end
+    if ~exist(fullfile(meta.workingfolder,'ColorTracking','Markers'),'dir')
+        mkdir(fullfile(meta.workingfolder,'ColorTracking','Markers'))
+    end
+    if ~exist(fullfile(meta.workingfolder,'OpenSim'),'dir')
+        mkdir(fullfile(meta.workingfolder,'OpenSim'))
+    end
+    if ~exist(fullfile(meta.workingfolder,'OpenSim','Analysis'),'dir')
+        mkdir(fullfile(meta.workingfolder,'OpenSim','Analysis'))
+    end
 end
 
 %% Merge and strip files for spike sorting
 % Run processSpikesForSorting for the first time to combine spike data from
 % all files with a name starting with file_prefix.
-processSpikesForSorting(fullfile(meta.workingfolder,'preCDS','merging'),meta.neuralPrefix);
-if exist('altMeta','var') && ~isempty(altMeta.array)
-    processSpikesForSorting(fullfile(altMeta.workingfolder,'preCDS','merging'),altMeta.neuralPrefix);
+if ~meta.sorted
+    processSpikesForSorting(fullfile(meta.workingfolder,'preCDS','merging'),meta.neuralPrefix);
+    if exist('altMeta','var') && ~isempty(altMeta.array)
+        processSpikesForSorting(fullfile(altMeta.workingfolder,'preCDS','merging'),altMeta.neuralPrefix);
+    end
 end
 
 % Now sort in Offline Sorter!
 
 %% Load colorTracking file (and settings if desired) -- NOTE: Can do this simultaneously with sorting, since it takes some time
-first_time = 1;
-for fileIdx = 1:length(meta.taskAlias)
-    colorTrackingFilename = [meta.monkey '_' meta.date '_colorTracking_' meta.taskAlias{fileIdx}];
+if meta.motionTracked
+    if ~meta.markered
+        first_time = 1;
+        for fileIdx = 1:length(meta.taskAlias)
+            colorTrackingFilename = [meta.monkey '_' meta.date '_colorTracking_' meta.taskAlias{fileIdx}];
 
-    fname_load=ls(fullfile(meta.workingfolder,'ColorTracking',[colorTrackingFilename '*']));
-    load(deblank(fullfile(meta.workingfolder,'ColorTracking',fname_load)))
+            fname_load=ls(fullfile(meta.workingfolder,'ColorTracking',[colorTrackingFilename '*']));
+            load(deblank(fullfile(meta.workingfolder,'ColorTracking',fname_load)))
 
-    % Run color tracking script
-    color_tracker_4colors_script;
+            % Run color tracking script
+            color_tracker_4colors_script;
 
-    % Save
-    markersFilename = [meta.monkey '_' meta.date '_markers_' meta.taskAlias{fileIdx}];
-    fname_save=fullfile(meta.workingfolder,'ColorTracking','Markers',[markersFilename '.mat']);
-    save(fname_save,'all_medians','all_medians2','led_vals','times');
+            % Save
+            markersFilename = [meta.monkey '_' meta.date '_markers_' meta.taskAlias{fileIdx}];
+            fname_save=fullfile(meta.workingfolder,'ColorTracking','Markers',[markersFilename '.mat']);
+            save(fname_save,'all_medians','all_medians2','led_vals','times');
 
-    if first_time
-        fname_save_settings=fullfile(meta.workingfolder,'ColorTracking','Markers',['settings_' meta.monkey '_' meta.date]);
-        save(fname_save_settings,'red_elbow_dist_from_blue','red_blue_arm_dist_max',...
-            'green_hand_dists_elbow','red_hand_dists_elbow','blue_hand_dists_elbow','yellow_hand_dists_elbow','green_separator',...
-            'green_hand_dists_bluearm','red_hand_dists_bluearm','blue_hand_dists_bluearm','yellow_hand_dists_bluearm',...
-            'green_hand_dists_redarm', 'red_hand_dists_redarm', 'blue_hand_dists_redarm','yellow_hand_dists_redarm',...
-            'green_dist_min','red_keep','green_keep','blue_keep','yellow_keep','marker_inits');
-        clearvars -except meta altMeta 'red_elbow_dist_from_blue' 'red_blue_arm_dist_max'...
-            'green_hand_dists_elbow' 'red_hand_dists_elbow' 'blue_hand_dists_elbow' 'yellow_hand_dists_elbow' 'green_separator' ...
-            'green_hand_dists_bluearm' 'red_hand_dists_bluearm' 'blue_hand_dists_bluearm' 'yellow_hand_dists_bluearm' ...
-            'green_hand_dists_redarm'  'red_hand_dists_redarm'  'blue_hand_dists_redarm' 'yellow_hand_dists_redarm' ...
-            'green_dist_min' 'red_keep' 'green_keep' 'blue_keep' 'yellow_keep' 'marker_inits'
-        first_time = 0;
+            if first_time
+                fname_save_settings=fullfile(meta.workingfolder,'ColorTracking','Markers',['settings_' meta.monkey '_' meta.date]);
+                save(fname_save_settings,'red_elbow_dist_from_blue','red_blue_arm_dist_max',...
+                    'green_hand_dists_elbow','red_hand_dists_elbow','blue_hand_dists_elbow','yellow_hand_dists_elbow','green_separator',...
+                    'green_hand_dists_bluearm','red_hand_dists_bluearm','blue_hand_dists_bluearm','yellow_hand_dists_bluearm',...
+                    'green_hand_dists_redarm', 'red_hand_dists_redarm', 'blue_hand_dists_redarm','yellow_hand_dists_redarm',...
+                    'green_dist_min','red_keep','green_keep','blue_keep','yellow_keep','marker_inits');
+                clearvars -except meta altMeta 'red_elbow_dist_from_blue' 'red_blue_arm_dist_max'...
+                    'green_hand_dists_elbow' 'red_hand_dists_elbow' 'blue_hand_dists_elbow' 'yellow_hand_dists_elbow' 'green_separator' ...
+                    'green_hand_dists_bluearm' 'red_hand_dists_bluearm' 'blue_hand_dists_bluearm' 'yellow_hand_dists_bluearm' ...
+                    'green_hand_dists_redarm'  'red_hand_dists_redarm'  'blue_hand_dists_redarm' 'yellow_hand_dists_redarm' ...
+                    'green_dist_min' 'red_keep' 'green_keep' 'blue_keep' 'yellow_keep' 'marker_inits'
+                first_time = 0;
+            end
+        end
+        meta.markered = true;
+    else
+        fprintf('Please move marker data into working directory')
+        winopen(fullfile(meta.workingfolder,'ColorTracking','Markers'))
+        winopen(meta.markersfolder)
+        pause
     end
 end
 
@@ -141,25 +172,38 @@ end
 clearvars -except meta altMeta
 
 %% Split files and move to Final folder before loading
-processSpikesForSorting(fullfile(meta.workingfolder,'preCDS','merging'),meta.neuralPrefix);
-if exist('altMeta','var') && ~isempty(altMeta.array)
-    processSpikesForSorting(fullfile(altMeta.workingfolder,'preCDS','merging'),altMeta.neuralPrefix);
-end
+if ~meta.sorted
+    % pause to let the user finish sorting
+    pause
+    
+    % split things up
+    processSpikesForSorting(fullfile(meta.workingfolder,'preCDS','merging'),meta.neuralPrefix);
+    if exist('altMeta','var') && ~isempty(altMeta.array)
+        processSpikesForSorting(fullfile(altMeta.workingfolder,'preCDS','merging'),altMeta.neuralPrefix);
+    end
 
-% move into final folder
-for fileIdx = 1:length(meta.taskAlias)
-    movefile(fullfile(meta.workingfolder,'preCDS','merging',[meta.neuralPrefix '_' meta.taskAlias{fileIdx} '.mat']),...
-        fullfile(meta.workingfolder,'preCDS','Final'));
-    if exist('altMeta','var') && ~isempty(altMeta.array)
-        movefile(fullfile(altMeta.workingfolder,'preCDS','merging',[altMeta.neuralPrefix '_' altMeta.taskAlias{fileIdx} '.mat']),...
-            fullfile(altMeta.workingfolder,'preCDS','Final'));
+    % move into final folder
+    for fileIdx = 1:length(meta.taskAlias)
+        movefile(fullfile(meta.workingfolder,'preCDS','merging',[meta.neuralPrefix '_' meta.taskAlias{fileIdx} '.mat']),...
+            fullfile(meta.workingfolder,'preCDS','Final'));
+        if exist('altMeta','var') && ~isempty(altMeta.array)
+            movefile(fullfile(altMeta.workingfolder,'preCDS','merging',[altMeta.neuralPrefix '_' altMeta.taskAlias{fileIdx} '.mat']),...
+                fullfile(altMeta.workingfolder,'preCDS','Final'));
+        end
+        movefile(fullfile(meta.workingfolder,'preCDS','merging',[meta.neuralPrefix '_' meta.taskAlias{fileIdx} '.nev']),...
+            fullfile(meta.workingfolder,'preCDS','Final'));
+        if exist('altMeta','var') && ~isempty(altMeta.array)
+            movefile(fullfile(altMeta.workingfolder,'preCDS','merging',[altMeta.neuralPrefix '_' altMeta.taskAlias{fileIdx} '.nev']),...
+                fullfile(altMeta.workingfolder,'preCDS','Final'));
+        end
     end
-    movefile(fullfile(meta.workingfolder,'preCDS','merging',[meta.neuralPrefix '_' meta.taskAlias{fileIdx} '.nev']),...
-        fullfile(meta.workingfolder,'preCDS','Final'));
-    if exist('altMeta','var') && ~isempty(altMeta.array)
-        movefile(fullfile(altMeta.workingfolder,'preCDS','merging',[altMeta.neuralPrefix '_' altMeta.taskAlias{fileIdx} '.nev']),...
-            fullfile(altMeta.workingfolder,'preCDS','Final'));
-    end
+    meta.sorted = true;
+else
+    % open windows to move sorted stuff into place
+    fprintf('Please move sorted files into working directory')
+    winopen(fullfile(meta.workingfolder,'preCDS','Final'))
+    winopen(meta.sortedfolder)
+    pause
 end
 
 %% Load data into CDS file
@@ -175,7 +219,7 @@ for fileIdx = 1:length(meta.taskAlias)
         meta.lab,...
         'ignoreJumps',...
         'unsanitizedTimes',...
-        ['task' meta.task],...
+        ['task' meta.task{fileIdx}],...
         ['mapFile' meta.mapfile]);
 
     % also load second file if necessary
@@ -189,7 +233,7 @@ for fileIdx = 1:length(meta.taskAlias)
                 altMeta.lab,...
                 'ignoreJumps',...
                 'unsanitizedTimes',...
-                ['task' altMeta.task],...
+                ['task' altMeta.task{fileIdx}],...
                 ['mapFile' altMeta.mapfile]);
         else
             cds_cell{fileIdx}.file2cds(...
@@ -199,57 +243,66 @@ for fileIdx = 1:length(meta.taskAlias)
                 altMeta.lab,...
                 'ignoreJumps',...
                 'unsanitizedTimes',...
-                ['task' altMeta.task]);
+                ['task' altMeta.task{fileIdx}]);
         end
     end
 end
 
 %% Load marker file and create TRC
-for fileIdx = 1:length(meta.taskAlias)
-    markersFilename = [meta.monkey '_' meta.date '_markers_' meta.taskAlias{fileIdx} '.mat'];
-    affine_xform = cds_cell{fileIdx}.loadRawMarkerData(fullfile(meta.workingfolder,'ColorTracking','Markers',markersFilename));
-%     writeTRCfromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_markerData.trc']))
-    % writeHandleForceFromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_handleForce.mot']))
+if meta.markered
+    for fileIdx = 1:length(meta.taskAlias)
+        markersFilename = [meta.monkey '_' meta.date '_markers_' meta.taskAlias{fileIdx} '.mat'];
+        affine_xform = cds_cell{fileIdx}.loadRawMarkerData(fullfile(meta.workingfolder,'ColorTracking','Markers',markersFilename));
+        writeTRCfromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_markerData.trc']))
+        % writeHandleForceFromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_handleForce.mot']))
+    end
 end
 
 %% Do openSim stuff and save analysis results to analysis folder
-
-% do this in opensim for now
+% pause for user to run opensim stuff
+if meta.markered
+    fprintf('Run OpenSim stuff!')
+    winopen(fullfile(meta.workingfolder,'OpenSim'))
+    winopen(meta.opensimsettingsfolder)
+    pause
+end
 
 %% Add kinematic information to CDS
-for fileIdx = 1:length(meta.taskAlias)
-    % load joint information
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_ang')
+if meta.markered
+    for fileIdx = 1:length(meta.taskAlias)
+        % load joint information
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_ang')
 
-    % load joint velocities
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_vel')
+        % load joint velocities
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_vel')
 
-    % load joint moments
-    % cds{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_dyn')
+        % load joint moments
+        % cds{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'joint_dyn')
 
-    % load muscle information
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'muscle_len')
+        % load muscle information
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'muscle_len')
 
-    % load muscle velocities
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'muscle_vel')
-    
-    % load hand positions
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_pos')
-    
-    % load hand velocities
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_vel')
-    
-    % load hand accelerations
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_acc')
+        % load muscle velocities
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'muscle_vel')
 
-    % load elbow positions
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_pos')
-    
-    % load elbow velocities
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_vel')
-    
-    % load elbow accelerations
-    cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_acc')
+        % load hand positions
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_pos')
+
+        % load hand velocities
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_vel')
+
+        % load hand accelerations
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'hand_acc')
+
+        % load elbow positions
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_pos')
+
+        % load elbow velocities
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_vel')
+
+        % load elbow accelerations
+        cds_cell{fileIdx}.loadOpenSimData(fullfile(meta.workingfolder,'OpenSim','Analysis'),'elbow_acc')
+    end
 end
 
 %% Save CDS
@@ -258,3 +311,17 @@ for fileIdx = 1:length(meta.taskAlias)
     cds = cds_cell{fileIdx};
     save(fullfile(meta.cdslibrary,cds_name),'cds','-v7.3')
 end
+
+%% Copy stuff back to server for backup
+if meta.markered
+    winopen(meta.markersfolder)
+    winopen(fullfile(meta.workingfolder,'ColorTracking','Markers'))
+end
+
+if meta.sorted
+    winopen(meta.sortedfolder)
+    winopen(fullfile(meta.workingfolder,'preCDS'))
+end
+
+winopen(fullfile(meta.remotefolder,'cds-library'))
+winopen(meta.cdslibrary)
