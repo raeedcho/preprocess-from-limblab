@@ -1,10 +1,11 @@
-function out = processCDS(filename,params)
+function out = processCDS(filename,signal_info)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % loads a CDS file and returns all continuous signals it can extract, along
 % with all the event data (trial table entries ending in 'Time').
 
 % params
-assignParams(who,params); % overwrite parameters
+trial_meta = {}; % list of fields from the trial table to import into TD
+assignParams(who,signal_info.params); % overwrite parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 error_flag = false;
 
@@ -213,8 +214,7 @@ end
 
 % resample everything to the highest sampling rate
 [final_rate,maxrate_idx] = max(samp_rate);
-t_start = -inf;
-t_end = inf;
+t_end = 0;
 for signum = 1:length(signal_names)
     [P,Q] = rat(final_rate/samp_rate(signum),1e-7);
     if P~=1 || Q~=1
@@ -294,21 +294,16 @@ for signum = 1:length(signal_names)
         timevec_cell{signum} = ty;
     end
     
-    % collect largest min and smallest max time for trimming
-    t_start = max(t_start,timevec_cell{signum}(1));
-    t_end = min(t_end,timevec_cell{signum}(end));
+    % collect max time for time extension
+    t_end = max(t_end,timevec_cell{signum}(end));
 end
 
-% trim time vectors to be the same length and interpolate to 
-t = timevec_cell{maxrate_idx};
-trim_pts = t<t_start | t>t_end;
-cont_data_cell{maxrate_idx} = cont_data_cell{maxrate_idx}(~trim_pts,:);
-t = t(~trim_pts);
+% extend time vectors to be the same length and interpolate to unified time
+dt = mode(diff(timevec_cell{maxrate_idx}));
+t = (0:dt:t_end)';
 for signum = 1:length(signal_names)
-    if signum ~= maxrate_idx
-        % interpolate to new time vector
-        cont_data_cell{signum} = interp1(timevec_cell{signum},cont_data_cell{signum},t);
-    end
+    % interpolate to new time vector (fill extrapolated points with NaNs)
+    cont_data_cell{signum} = interp1(timevec_cell{signum},cont_data_cell{signum},t);
 end
 
 % try horizontally concatenating...If everything went well, things should
@@ -319,7 +314,22 @@ cont_labels = horzcat(signal_labels{:});
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % now the meta...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-meta_info = struct('monkey',cds.meta.monkey,'task',cds.meta.task,'date_time',cds.meta.dateTime);
+meta_info = struct(...
+    'monkey',cds.meta.monkey,...
+    'task',cds.meta.task,...
+    'date_time',cds.meta.dateTime,...
+    'trialID',cds.trials.number',...
+    'result',cds.trials.result'...
+    );
+
+% import the trial table meta info
+for i=1:length(trial_meta)
+    if ischar(trial_meta{i}) && ismember(trial_meta{i},cds.trials.Properties.VariableNames)
+        meta_info.(trial_meta{i}) = cds.trials.(trial_meta{i});
+    else
+        warning('Element %d of trial_meta was not imported',i)
+    end
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 out.meta   = meta_info;
