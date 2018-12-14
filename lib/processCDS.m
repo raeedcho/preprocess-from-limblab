@@ -325,7 +325,7 @@ meta_info = struct(...
 % import the trial table meta info
 for i=1:length(trial_meta)
     if ischar(trial_meta{i}) && ismember(trial_meta{i},cds.trials.Properties.VariableNames)
-        meta_info.(trial_meta{i}) = cds.trials.(trial_meta{i});
+        meta_info.(trial_meta{i}) = cds.trials.(trial_meta{i})';
     else
         warning('Element %d of trial_meta was not imported',i)
     end
