@@ -3,12 +3,12 @@ clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
 meta.monkey='Han';
-meta.date='20171116';
-meta.task={'COactpas'}; % for the loading of cds
-meta.taskAlias={'COactpas_002'}; % for the filename (cell array list for files to load and save)
-meta.EMGrecorded = false; % whether or not EMG was recorded
-meta.motionTracked = false; % whether or not we have motion tracking
-meta.sorted = true; % whether or not the neurons have already been sorted
+meta.date='20171102';
+meta.task={'TRT'}; % for the loading of cds
+meta.taskAlias={'TRT_001'}; % for the filename (cell array list for files to load and save)
+meta.EMGrecorded = true; % whether or not EMG was recorded
+meta.motionTracked = true; % whether or not we have motion tracking
+meta.sorted = false; % whether or not the neurons have already been sorted
 meta.markered = false; % whether or not the colorTracking has been markered
 meta.array='LeftS1Area2'; % for the loading of cds
 
