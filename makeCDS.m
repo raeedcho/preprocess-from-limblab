@@ -56,19 +56,22 @@ end
 meta.neuralPrefix = [meta.monkey '_' meta.date '_' meta.arrayAlias];
 
 %% Copy data into working directory
-if length(dir(meta.workingfolder))==2 % check if directory is empty first
-    if ispc
-        % open windows so that we can move data around
-        winopen(meta.workingfolder)
-        winopen(meta.rawfolder)
-    else
-        fprintf('These directories are probably all wrong...')
-        %fprintf('Please navigate to %s and move data to %s',meta.rawfolder,meta.workingfolder)
-        % copyfile(fullfile(meta.rawfolder,[meta.monkey '_' meta.date '*']),meta.workingfolder)
-    end
-else
+while length(dir(meta.workingfolder))~=2 % check if directory is empty first
     winopen(meta.workingfolder)
-    error('The working directory is not empty!')
+    fprintf('The working directory is not empty, please empty it!')
+    pause
+end
+
+if ispc
+    % open windows so that we can move data around
+    winopen(meta.workingfolder)
+    winopen(meta.rawfolder)
+    pause
+else
+    fprintf('These directories are probably all wrong...')
+    error('Cannot open windows through script, do it live!')
+    %fprintf('Please navigate to %s and move data to %s',meta.rawfolder,meta.workingfolder)
+    % copyfile(fullfile(meta.rawfolder,[meta.monkey '_' meta.date '*']),meta.workingfolder)
 end
 
 %% Set up folder structure
