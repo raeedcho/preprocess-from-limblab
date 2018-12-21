@@ -3,13 +3,13 @@ clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
 meta.monkey='Han';
-meta.date='20171102';
-meta.task={'TRT'}; % for the loading of cds
-meta.taskAlias={'TRT_001'}; % for the filename (cell array list for files to load and save)
-meta.EMGrecorded = true; % whether or not EMG was recorded
+meta.date='20160315';
+meta.task={'RW'}; % for the loading of cds
+meta.taskAlias={'RW_001'}; % for the filename (cell array list for files to load and save)
+meta.EMGrecorded = false; % whether or not EMG was recorded
 meta.motionTracked = true; % whether or not we have motion tracking
-meta.sorted = false; % whether or not the neurons have already been sorted
-meta.markered = false; % whether or not the colorTracking has been markered
+meta.sorted = true; % whether or not the neurons have already been sorted
+meta.markered = true; % whether or not the colorTracking has already been markered
 meta.array='LeftS1Area2'; % for the loading of cds
 
 %% Set up meta fields
@@ -58,7 +58,7 @@ meta.neuralPrefix = [meta.monkey '_' meta.date '_' meta.arrayAlias];
 %% Copy data into working directory
 while length(dir(meta.workingfolder))~=2 % check if directory is empty first
     winopen(meta.workingfolder)
-    fprintf('The working directory is not empty, please empty it!')
+    fprintf('The working directory is not empty, please empty it!\n')
     pause
 end
 
@@ -68,7 +68,7 @@ if ispc
     winopen(meta.rawfolder)
     pause
 else
-    fprintf('These directories are probably all wrong...')
+    fprintf('These directories are probably all wrong...\n')
     error('Cannot open windows through script, do it live!')
     %fprintf('Please navigate to %s and move data to %s',meta.rawfolder,meta.workingfolder)
     % copyfile(fullfile(meta.rawfolder,[meta.monkey '_' meta.date '*']),meta.workingfolder)
@@ -161,7 +161,7 @@ if meta.motionTracked
         end
         meta.markered = true;
     else
-        fprintf('Please move marker data into working directory')
+        fprintf('Please move marker data into working directory\n')
         winopen(fullfile(meta.workingfolder,'ColorTracking','Markers'))
         winopen(meta.markersfolder)
         pause
@@ -200,7 +200,7 @@ if ~meta.sorted
     meta.sorted = true;
 else
     % open windows to move sorted stuff into place
-    fprintf('Please move sorted files into working directory')
+    fprintf('Please move sorted files into working directory\n')
     winopen(fullfile(meta.workingfolder,'preCDS','Final'))
     winopen(meta.sortedfolder)
     pause
@@ -261,7 +261,7 @@ end
 %% Do openSim stuff and save analysis results to analysis folder
 % pause for user to run opensim stuff
 if meta.markered
-    fprintf('Run OpenSim stuff!')
+    fprintf('Run OpenSim stuff!\n')
     winopen(fullfile(meta.workingfolder,'OpenSim'))
     winopen(meta.opensimsettingsfolder)
     pause
