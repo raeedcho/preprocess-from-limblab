@@ -216,7 +216,8 @@ end
 [final_rate,maxrate_idx] = max(samp_rate);
 t_end = 0;
 for signum = 1:length(signal_names)
-    [P,Q] = rat(final_rate/samp_rate(signum),1e-7);
+    % [P,Q] = rat(final_rate/samp_rate(signum),1e-7);
+    [P,Q] = rat(final_rate/samp_rate(signum)); % sometimes P and Q are very big, so use default tolerance...
     if P~=1 || Q~=1
         assert(signum~=maxrate_idx,'Something went wrong with the resample code...')
         
