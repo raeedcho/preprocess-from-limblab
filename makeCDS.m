@@ -2,10 +2,10 @@
 clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
-meta.monkey='Han';
-meta.date='20160315';
-meta.task={'RW'}; % for the loading of cds
-meta.taskAlias={'RW_001'}; % for the filename (cell array list for files to load and save)
+meta.monkey='Lando';
+meta.date='20170802';
+meta.task={'RW','RW'}; % for the loading of cds
+meta.taskAlias={'RW_DL_001','RW_PM_002'}; % for the filename (cell array list for files to load and save)
 meta.EMGrecorded = false; % whether or not EMG was recorded
 meta.motionTracked = true; % whether or not we have motion tracking
 meta.sorted = true; % whether or not the neurons have already been sorted
