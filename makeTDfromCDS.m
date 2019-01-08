@@ -1,14 +1,14 @@
 %% Pre-processing parameters
 clear meta
 meta.ranBy='Raeed';
-meta.monkey='Lando';
-meta.date='20170802';
-meta.task={'RW','RW'}; % for the loading of cds
-meta.taskAlias={'RW_PM_002','RW_DL_001'}; % for the filename (cell array list for files to load and save)
-meta.epochname={1,2}; % only used for sessions with multiple files to be combined into one TD
-meta.td_taskname = 'RWTW'; % for saving the TD
+meta.monkey='Chips';
+meta.date='20170907';
+meta.task={'TRT'}; % for the loading of cds
+meta.taskAlias={'TRT_001'}; % for the filename (cell array list for files to load and save)
+meta.epochname={}; % only used for sessions with multiple files to be combined into one TD
+meta.td_taskname = 'TRT'; % for saving the TD
 meta.EMGrecorded = false; % whether or not EMG was recorded
-meta.motorcontrol = true; % whether or not motor control signals were recorded
+meta.motorcontrol = false; % whether or not motor control signals were recorded
 meta.markered = true; % whether or not the colorTracking has been markered
 
 %% Set up meta fields
@@ -233,7 +233,7 @@ end
 trial_data = horzcat(td_cell{:});
 save(fullfile(meta.tdlibrary,[meta.monkey '_' meta.date '_' meta.td_taskname '_TD.mat']),'trial_data','-v7.3')
 
-% and back it up
+%% and back it up
 winopen(fullfile(meta.remotefolder,'td-library'))
 winopen(meta.tdlibrary)
 

@@ -2,14 +2,14 @@
 clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
-meta.monkey='Lando';
-meta.date='20170802';
-meta.task={'RW','RW'}; % for the loading of cds
-meta.taskAlias={'RW_DL_001','RW_PM_002'}; % for the filename (cell array list for files to load and save)
+meta.monkey='Chips';
+meta.date='20170907';
+meta.task={'TRT'}; % for the loading of cds
+meta.taskAlias={'TRT_001'}; % for the filename (cell array list for files to load and save)
 meta.EMGrecorded = false; % whether or not EMG was recorded
 meta.motionTracked = true; % whether or not we have motion tracking
-meta.sorted = true; % whether or not the neurons have already been sorted
-meta.markered = true; % whether or not the colorTracking has already been markered
+meta.sorted = false; % whether or not the neurons have already been sorted
+meta.markered = false; % whether or not the colorTracking has already been markered
 meta.array='LeftS1Area2'; % for the loading of cds
 
 %% Set up meta fields
@@ -122,6 +122,7 @@ if ~meta.sorted
     if exist('altMeta','var') && ~isempty(altMeta.array)
         processSpikesForSorting(fullfile(altMeta.workingfolder,'preCDS','merging'),altMeta.neuralPrefix);
     end
+    winopen(fullfile(meta.workingfolder,'preCDS','merging'))
 end
 
 % Now sort in Offline Sorter!
@@ -253,7 +254,7 @@ if meta.markered
     for fileIdx = 1:length(meta.taskAlias)
         markersFilename = [meta.monkey '_' meta.date '_markers_' meta.taskAlias{fileIdx} '.mat'];
         affine_xform = cds_cell{fileIdx}.loadRawMarkerData(fullfile(meta.workingfolder,'ColorTracking','Markers',markersFilename));
-        writeTRCfromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_markerData.trc']))
+%         writeTRCfromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_markerData.trc']))
         % writeHandleForceFromCDS(cds_cell{fileIdx},fullfile(meta.workingfolder,'OpenSim',[meta.monkey '_' meta.date '_' meta.taskAlias{fileIdx} '_handleForce.mot']))
     end
 end
