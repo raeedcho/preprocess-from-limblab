@@ -10,3 +10,6 @@
 [submodule "lib/SpikeMerge"]
 	path = lib/SpikeMerge
 	url = https://github.com/limblab/SpikeMerge.git
+[submodule "lib/loadTDfromCDS"]
+	path = lib/loadTDfromCDS
+	url = https://github.com/raeedcho/loadTDfromCDS.git
