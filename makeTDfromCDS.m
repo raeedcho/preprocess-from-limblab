@@ -1,6 +1,5 @@
 %% Pre-processing parameters
 clear meta
-meta.ranBy='Raeed';
 meta.monkey='Chips';
 meta.date='20170907';
 meta.task={'TRT'}; % for the loading of cds
@@ -91,7 +90,7 @@ end
 
 % parameters...
 clear params
-params = struct('bin_size',0.001);
+params = struct('bin_size',0.01);
 
 %% load it in
 td_cell = cell(1,length(meta.taskAlias));
@@ -234,8 +233,8 @@ trial_data = horzcat(td_cell{:});
 save(fullfile(meta.tdlibrary,[meta.monkey '_' meta.date '_' meta.td_taskname '_TD.mat']),'trial_data','-v7.3')
 
 %% and back it up
-winopen(fullfile(meta.remotefolder,'td-library'))
-winopen(meta.tdlibrary)
+% winopen(fullfile(meta.remotefolder,'td-library'))
+% winopen(meta.tdlibrary)
 
 %% Post processing?
 % switch(meta.task)  

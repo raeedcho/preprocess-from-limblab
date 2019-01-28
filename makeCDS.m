@@ -2,10 +2,10 @@
 clear meta altMeta
 meta.lab=6;
 meta.ranBy='Raeed';
-meta.monkey='Han';
-meta.date='20171207';
+meta.monkey='Lando';
+meta.date='20170917';
 meta.task={'COactpas'}; % for the loading of cds
-meta.taskAlias={'COactpas_002'}; % for the filename (cell array list for files to load and save)
+meta.taskAlias={'COactpas_001'}; % for the filename (cell array list for files to load and save)
 meta.EMGrecorded = true; % whether or not EMG was recorded
 meta.motionTracked = true; % whether or not we have motion tracking
 meta.sorted = false; % whether or not the neurons have already been sorted
@@ -192,6 +192,8 @@ if meta.motionTracked
         end
     end
 end
+
+fprintf('Markers written\n')
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clearvars -except meta altMeta
