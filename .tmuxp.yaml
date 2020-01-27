@@ -1,0 +1,12 @@
+session_name: limblab-preprocess
+start_directory: ./ # load session relative to config location
+windows:
+    - window_name: limblab-preprocess
+      focus: True
+      layout: main-vertical
+      options:
+          main-pane-width: 100
+      panes:
+          - matlab -nodesktop
+          - focus: True
+            shell_command: vim
